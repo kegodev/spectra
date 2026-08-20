@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SpectraLab is an interactive UV–Vis calibration and Beer–Lambert law simulator built with vanilla HTML, CSS and JavaScript." />
+  <meta name="theme-color" content="#111111" />
+  <title>SpectraLab — UV–Vis Calibration Simulator</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="SpectraLab home">
+      <img src="assets/logo.svg" alt="" width="34" height="34" />
+      <span>SpectraLab</span>
+    </a>
+    <nav class="header-actions" aria-label="Page actions">
+      <button class="button button-ghost" id="resetBtn" type="button">Reset</button>
+      <button class="button" id="exportBtn" type="button">Export CSV</button>
+    </nav>
+  </header>
+
+  <main class="app-shell">
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Interactive analytical chemistry tool</p>
+        <h1 id="page-title">Build a UV–Vis calibration curve and solve an unknown.</h1>
+        <p class="hero-copy">Edit standards, calculate the least-squares regression, inspect R², and determine an unknown concentration using the Beer–Lambert relationship.</p>
+      </div>
+      <div class="law-card" aria-label="Beer-Lambert law formula">
+        <span>Beer–Lambert law</span>
+        <strong>A = εbc</strong>
+        <small>Absorbance = molar absorptivity × path length × concentration</small>
+      </div>
+    </section>
+
+    <section class="grid grid-settings" aria-label="Experiment settings">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Method</p>
+            <h2>Experiment settings</h2>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label>
+            <span>Analyte</span>
+            <input id="analyte" type="text" value="Cu²⁺ complex" maxlength="40" />
+          </label>
+          <label>
+            <span>Wavelength, λ (nm)</span>
+            <input id="wavelength" type="number" value="620" min="190" max="1100" step="1" />
+          </label>
+          <label>
+            <span>Path length, b (cm)</span>
+            <input id="pathLength" type="number" value="1.00" min="0.01" max="10" step="0.01" />
+          </label>
+          <label>
+            <span>Concentration unit</span>
+            <select id="unit">
+              <option value="mg/L">mg/L</option>
+              <option value="µmol/L">µmol/L</option>
+              <option value="mmol/L">mmol/L</option>
+              <option value="mol/L">mol/L</option>
+            </select>
+          </label>
+        </div>
+      </article>
+
+      <article class="panel metric-panel" aria-live="polite">
+        <p class="panel-kicker">Regression</p>
+        <div class="metric-row">
+          <div><span>Slope</span><strong id="slopeMetric">—</strong></div>
+          <div><span>Intercept</span><strong id="interceptMetric">—</strong></div>
+          <div><span>R²</span><strong id="r2Metric">—</strong></div>
+        </div>
+        <div class="equation" id="equationText">Add at least two valid standards.</div>
+      </article>
+    </section>
+
+    <section class="workspace">
+      <article class="panel standards-panel">
+        <div class="panel-heading inline-heading">
+          <div>
+            <p class="panel-kicker">Calibration</p>
+            <h2>Standards</h2>
+          </div>
+          <button class="button button-secondary" id="addRowBtn" type="button">Add standard</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Concentration</th>
+                <th scope="col">Absorbance</th>
+                <th scope="col"><span class="sr-only">Remove</span></th>
+              </tr>
+            </thead>
+            <tbody id="standardsBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">Regression updates automatically when standard values change.</p>
+      </article>
+
+      <article class="panel chart-panel">
+        <div class="panel-heading inline-heading">
+          <div>
+            <p class="panel-kicker">Visualisation</p>
+            <h2>Calibration curve</h2>
+          </div>
+          <span class="status-pill" id="qualityPill">Waiting for data</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart" width="900" height="520" aria-label="Calibration curve plot" role="img"></canvas>
+        </div>
+        <div class="legend"><span class="legend-dot"></span> Standards <span class="legend-line"></span> Linear fit</div>
+      </article>
+    </section>
+
+    <section class="grid grid-unknown">
+      <article class="panel unknown-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Unknown sample</p>
+            <h2>Determine concentration</h2>
+          </div>
+        </div>
+        <label class="unknown-input">
+          <span>Unknown absorbance</span>
+          <input id="unknownAbsorbance" type="number" value="0.515" min="0" step="0.001" />
+        </label>
+        <button class="button solve-button" id="solveBtn" type="button">Calculate unknown</button>
+      </article>
+
+      <article class="result-card" aria-live="polite">
+        <p>Calculated concentration</p>
+        <strong id="unknownResult">—</strong>
+        <span id="unknownUnit">mg/L</span>
+        <small id="resultNote">A valid calibration is required.</small>
+      </article>
+
+      <article class="panel diagnostics-panel">
+        <p class="panel-kicker">Quality check</p>
+        <h2>Interpretation</h2>
+        <ul id="diagnosticsList" class="diagnostics-list"></ul>
+      </article>
+    </section>
+
+    <section class="panel theory-panel">
+      <div>
+        <p class="panel-kicker">Concept</p>
+        <h2>What the simulator is calculating</h2>
+      </div>
+      <div class="theory-grid">
+        <p><strong>Least-squares fit:</strong> SpectraLab fits <em>A = mc + b</em>, where absorbance is the y-variable and concentration is the x-variable.</p>
+        <p><strong>Unknown concentration:</strong> The unknown is calculated from <em>c = (A − b) / m</em> using the fitted slope and intercept.</p>
+        <p><strong>R²:</strong> The coefficient of determination indicates how closely the standards follow a straight-line calibration model.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Built as an educational analytical chemistry simulator. Not intended for regulated laboratory reporting.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
